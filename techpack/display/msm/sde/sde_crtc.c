@@ -776,7 +776,7 @@ static void sde_crtc_fod_atomic_check(struct sde_crtc_state *cstate,
 	if (!cstate || !pstates)
 		return;
 	for (i = 0; i < cnt; i++) {
-		if (sde_plane_is_fod_layer(pstates[i].drm_pstate)) {
+		if (sde_plane_is_fod_layer(&pstates[i].base)) {
 			cstate->fod_pressed = true;
 			fod_plane_idx = i;
 			break;
@@ -787,7 +787,6 @@ static void sde_crtc_fod_atomic_check(struct sde_crtc_state *cstate,
 				pstates[fod_plane_idx].stage);
 	cstate->fod_dim_valid = !!cstate->fod_dim_layer;
 }
-
 bool sde_crtc_is_crtc_roi_dirty(struct drm_crtc_state *state)
 {
 	struct sde_crtc_state *cstate;
@@ -1568,7 +1567,6 @@ static void _sde_crtc_setup_blend_cfg_by_stage(struct sde_crtc_mixer *mixer,
 		}
 	}
 }
-
 static void _sde_crtc_blend_setup_mixer(struct drm_crtc *crtc,
 		struct drm_crtc_state *old_state, struct sde_crtc *sde_crtc,
 		struct sde_crtc_mixer *mixer)
@@ -4594,7 +4592,6 @@ static void _sde_crtc_reset(struct drm_crtc *crtc)
 
 	sde_crtc_static_img_control(crtc, CACHE_STATE_DISABLED, false);
 }
-
 static void sde_crtc_disable(struct drm_crtc *crtc)
 {
 	struct sde_kms *sde_kms;
@@ -5392,7 +5389,6 @@ static int _sde_crtc_check_zpos(struct drm_crtc_state *state,
 	}
 	return rc;
 }
-
 static int _sde_crtc_atomic_check_pstates(struct drm_crtc *crtc,
 		struct drm_crtc_state *state,
 		struct plane_state *pstates,
@@ -7778,7 +7774,6 @@ static void sde_crtc_install_noise_layer_properties(struct sde_crtc *sde_crtc,
 		break;
 	}
 }
-
 static int _sde_crtc_set_noise_layer(struct sde_crtc *sde_crtc,
 				struct sde_crtc_state *cstate,
 				void __user *usr_ptr)

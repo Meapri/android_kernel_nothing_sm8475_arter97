@@ -35,6 +35,19 @@ jobs:
             libssl-dev libelf-dev libncurses5-dev python3 python3-pip \
             rsync fakeroot cpio zip unzip xz-utils ca-certificates
 
+      - name: Free disk space (remove preinstalled SDKs/CodeQL/dotnet)
+        run: |
+          set -e
+          sudo rm -rf /usr/local/lib/android || true
+          sudo rm -rf /usr/local/lib/android/sdk || true
+          sudo rm -rf /opt/ghc || true
+          sudo rm -rf /usr/share/dotnet || true
+          sudo rm -rf /opt/hostedtoolcache/CodeQL || true
+          sudo docker system prune -af || true
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
+          df -h
+
       - name: Setup LLVM 21.1.0 (clang/lld)
         run: |
           set -e
@@ -62,7 +75,7 @@ jobs:
         run: |
           ccache --version || true
           mkdir -p "$CCACHE_DIR"
-          ccache --set-config=max_size=5G || true
+          ccache --set-config=max_size=1G || true
           ccache --set-config=compiler_check=content || true
           ccache --zero-stats || true
 

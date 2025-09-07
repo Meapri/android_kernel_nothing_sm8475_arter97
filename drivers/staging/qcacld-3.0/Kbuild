@@ -549,6 +549,13 @@ cppflags-$(CONFIG_ONE_MSI_VECTOR) += -DWLAN_ONE_MSI_VECTOR
 found = $(shell if grep -qF "bool mlo_params_valid;" $(srctree)/include/net/cfg80211.h; then echo "yes" ;else echo "no" ;fi;)
 ifeq ($(findstring yes, $(found)), yes)
 ccflags-y += -DCFG80211_MLD_AP_STA_CONNECT_UPSTREAM_SUPPORT
+ifdef CONFIG_CC_IS_CLANG
+subdir-ccflags-y += $(call cc-option, -Wno-implicit-enum-enum-cast)
+subdir-ccflags-y += $(call cc-option, -Wno-enum-enum-conversion)
+subdir-ccflags-y += $(call cc-option, -Wno-enum-conversion)
+subdir-ccflags-y += $(call cc-option, -Wno-address-of-packed-member)
+subdir-ccflags-y += $(call cc-option, -Wno-implicit-fallthrough)
+endif
 endif
 
 cppflags-$(CONFIG_DSC_DEBUG) += -DWLAN_DSC_DEBUG

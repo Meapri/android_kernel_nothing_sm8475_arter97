@@ -3003,7 +3003,7 @@ static void sde_encoder_virt_enable(struct drm_encoder *drm_enc)
 	int i, ret = 0;
 	struct sde_connector_state *c_state;
 	struct drm_display_mode *cur_mode = NULL;
-	struct msm_display_mode *msm_mode;
+	struct msm_display_mode *msm_mode = NULL;
 
 	if (!drm_enc || !drm_enc->crtc) {
 		SDE_ERROR("invalid encoder\n");
@@ -3043,7 +3043,7 @@ static void sde_encoder_virt_enable(struct drm_encoder *drm_enc)
 
 	/* register input handler if not already registered */
 	if (sde_enc->input_handler && !sde_enc->input_handler_registered &&
-			!msm_is_mode_seamless_dms(msm_mode) &&
+			msm_mode && !msm_is_mode_seamless_dms(msm_mode) &&
 		sde_encoder_check_curr_mode(drm_enc, MSM_DISPLAY_CMD_MODE) &&
 			!msm_is_mode_seamless_dyn_clk(msm_mode)) {
 		_sde_encoder_input_handler_register(drm_enc);

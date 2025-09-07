@@ -223,7 +223,8 @@ static int gsx_gesture_init(struct goodix_ts_core *cd,
 	}
 
 	gsx->ts_core = cd;
-	gsx->ts_core->gesture_type = 0;
+	/* Enable FOD press gesture by default so UDFPS works without manual toggle */
+	gsx->ts_core->gesture_type = GESTURE_FOD_PRESS;
 	atomic_set(&gsx->registered, 1);
 
 	return 0;

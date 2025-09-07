@@ -78,6 +78,9 @@ jobs:
           set -e
           echo "Using clang: $(which clang)"
           echo "Repo root: $(pwd)"
+          # Reduce log noise: warnings and errors only
+          export MAKEFLAGS="-s"
+          export KCFLAGS="-w"
           # Build with LLVM toolchain; build script forwards args to make
           bash ./build_kernel.sh -j"$(nproc)" \
             LLVM=1 LLVM_IAS=1 \

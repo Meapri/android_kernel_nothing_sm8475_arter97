@@ -2976,6 +2976,37 @@ static ssize_t show_hbm_mode(struct kobject *kobj, struct kobj_attribute *attr, 
 	return sprintf(buf, "%d\n", panel_hbm_flag);
 }
 
+/* finger_hbm: toggle UDFPS HBM via connector finger_flag path */
+static ssize_t store_finger_hbm(struct kobject *kobj, struct kobj_attribute *attr,
+                               const char *buf, size_t size)
+{
+	int rc = 0;
+	unsigned long finger_hbm;
+
+	rc = kstrtoul(buf, 0, &finger_hbm);
+	if (rc)
+		return rc;
+
+	if (!panel_feature_sde_conn)
+		return size;
+
+	panel_feature_sde_conn->finger_flag = finger_hbm ? 1 : 0;
+	panel_feature_sde_conn->fingerlayer_dirty = true;
+
+	/* update HBM and LP state immediately */
+	_sde_connector_update_finger_hbm_status(&panel_feature_sde_conn->base);
+
+	return size;
+}
+
+static ssize_t show_finger_hbm(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	unsigned int val = 0;
+	if (panel_feature_sde_conn)
+		val = panel_feature_sde_conn->finger_flag;
+	return sprintf(buf, "%u\n", val);
+}
+
 static ssize_t panel_id1_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
 	const char *read_id_cmd = "0x01 0x06 0x01 0x00 0x01 0x00 0x00 0x01 0xDA";
@@ -3047,6 +3078,7 @@ static ssize_t show_skip_frame_mode(struct kobject *kobj, struct kobj_attribute 
 }
 
 static struct kobj_attribute hbm_mode_attribute = __ATTR(hbm_mode, S_IRUGO | S_IWUSR, show_hbm_mode, store_hbm_mode);
+static struct kobj_attribute finger_hbm_attribute = __ATTR(finger_hbm, S_IRUGO | S_IWUSR, show_finger_hbm, store_finger_hbm);
 static struct kobj_attribute skip_frame_mode_attribute = __ATTR(skip_frame_mode, S_IRUGO | S_IWUSR, show_skip_frame_mode, store_skip_frame_mode);
 static struct kobj_attribute panel_id1_attribute = __ATTR(panel_id1, S_IRUGO | S_IWUSR, panel_id1_show, NULL);
 static struct kobj_attribute panel_id2_attribute = __ATTR(panel_id2, S_IRUGO | S_IWUSR, panel_id2_show, NULL);
@@ -3054,6 +3086,7 @@ static struct kobj_attribute panel_id3_attribute = __ATTR(panel_id3, S_IRUGO | S
 
 static struct attribute *panel_feature_attributes[] = {
 	&hbm_mode_attribute.attr,
+	&finger_hbm_attribute.attr,
 	&skip_frame_mode_attribute.attr,
 	&panel_id1_attribute.attr,
 	&panel_id2_attribute.attr,

@@ -464,4 +464,9 @@ void dsi_panel_dealloc_cmd_packets(struct dsi_panel_cmd_set *set);
 
 int nt_display_parse_switch_cmds(struct dsi_panel *panel);
 
+/* FOD UI helpers */
+void dsi_panel_set_fod_ui(struct dsi_panel *panel, bool status);
+bool dsi_panel_get_fod_ui(struct dsi_panel *panel);
+bool dsi_panel_get_force_fod_ui(struct dsi_panel *panel);
+
 #endif /* _DSI_PANEL_H_ */

@@ -1,3 +1,16 @@
+#include "sde_plane.h"
+#include "msm_drv.h"
+
+/* Minimal stub: treat zpos flag or private prop as FOD when available */
+int sde_plane_is_fod_layer(const struct drm_plane_state *drm_state)
+{
+    const struct sde_plane_state *pstate;
+    if (!drm_state)
+        return 0;
+    pstate = to_sde_plane_state(drm_state);
+    /* If property not present, return 0 (no special FOD layer heuristic) */
+    return 0;
+}
 /*
  * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (C) 2014-2021 The Linux Foundation. All rights reserved.

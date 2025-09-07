@@ -759,6 +759,35 @@ void sde_crtc_get_crtc_roi(struct drm_crtc_state *state,
 	*crtc_roi = &crtc_state->crtc_roi;
 }
 
+/* Minimal FOD hooks: placeholder to keep state fields consistent */
+static struct sde_hw_dim_layer *sde_crtc_setup_fod_dim_layer(
+		struct sde_crtc_state *cstate, uint32_t stage)
+{
+	if (!cstate || !cstate->num_dim_layers)
+		return NULL;
+	return &cstate->dim_layer[0];
+}
+
+static void sde_crtc_fod_atomic_check(struct sde_crtc_state *cstate,
+		struct sde_plane_state *pstates, int cnt)
+{
+	int i;
+	int fod_plane_idx = -1;
+	if (!cstate || !pstates)
+		return;
+	for (i = 0; i < cnt; i++) {
+		if (sde_plane_is_fod_layer(pstates[i].drm_pstate)) {
+			cstate->fod_pressed = true;
+			fod_plane_idx = i;
+			break;
+		}
+	}
+	if (fod_plane_idx >= 0)
+		cstate->fod_dim_layer = sde_crtc_setup_fod_dim_layer(cstate,
+				pstates[fod_plane_idx].stage);
+	cstate->fod_dim_valid = !!cstate->fod_dim_layer;
+}
+
 bool sde_crtc_is_crtc_roi_dirty(struct drm_crtc_state *state)
 {
 	struct sde_crtc_state *cstate;

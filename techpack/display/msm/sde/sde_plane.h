@@ -369,4 +369,7 @@ void sde_plane_add_data_to_minidump_va(struct drm_plane *plane);
 bool sde_plane_property_is_dirty(struct drm_plane_state *plane_state,
 		uint32_t property_idx);
 
+/* Return true if this plane/state is marked as FOD layer (UI overlay) */
+int sde_plane_is_fod_layer(const struct drm_plane_state *drm_state);
+
 #endif /* _SDE_PLANE_H_ */

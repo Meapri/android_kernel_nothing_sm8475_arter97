@@ -19,6 +19,18 @@
 #include "sde_dsc_helper.h"
 #include "sde_vdc_helper.h"
 
+#include <linux/atomic.h>
+static atomic_t g_fod_ui_active = ATOMIC_INIT(0);
+
+void dsi_panel_set_fod_ui(struct dsi_panel *panel, bool status)
+{
+	if (!panel)
+		return;
+	atomic_set(&g_fod_ui_active, status ? 1 : 0);
+	/* Optional: adapt TE/ESD or dimming min bl if needed in future */
+}
+EXPORT_SYMBOL_GPL(dsi_panel_set_fod_ui);
+
 /**
  * topology is currently defined by a set of following 3 values:
  * 1. num of layer mixers

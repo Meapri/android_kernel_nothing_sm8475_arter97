@@ -31,6 +31,19 @@ void dsi_panel_set_fod_ui(struct dsi_panel *panel, bool status)
 }
 EXPORT_SYMBOL_GPL(dsi_panel_set_fod_ui);
 
+bool dsi_panel_get_fod_ui(struct dsi_panel *panel)
+{
+    return atomic_read(&g_fod_ui_active) ? true : false;
+}
+EXPORT_SYMBOL_GPL(dsi_panel_get_fod_ui);
+
+bool dsi_panel_get_force_fod_ui(struct dsi_panel *panel)
+{
+    /* No force UI policy yet; return current FOD UI state */
+    return dsi_panel_get_fod_ui(panel);
+}
+EXPORT_SYMBOL_GPL(dsi_panel_get_force_fod_ui);
+
 /**
  * topology is currently defined by a set of following 3 values:
  * 1. num of layer mixers

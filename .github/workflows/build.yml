@@ -7,10 +7,20 @@ on:
     branches: [ master, kernelsu ]
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build:
+  quick-check:
     runs-on: ubuntu-22.04
     timeout-minutes: 90
+    env:
+      ARCH: arm64
+      SUBARCH: arm64
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      KBUILD_BUILD_USER: github-actions
+      KBUILD_BUILD_HOST: github
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -42,7 +52,7 @@ jobs:
       - name: Cache ccache
         uses: actions/cache@v4
         with:
-          path: ~/.cache/ccache
+          path: ${{ env.CCACHE_DIR }}
           key: ccache-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('**/*.[chS]', 'defconfig') }}
           restore-keys: |
             ccache-${{ runner.os }}-${{ github.ref_name }}-
@@ -51,7 +61,86 @@ jobs:
       - name: Configure ccache
         run: |
           ccache --version || true
+          mkdir -p "$CCACHE_DIR"
           ccache --set-config=max_size=5G || true
+          ccache --set-config=compiler_check=content || true
+          ccache --zero-stats || true
+
+      - name: Quick config and critical modules build (fail fast)
+        run: |
+          set -e
+          make LLVM=1 LLVM_IAS=1 olddefconfig
+          make LLVM=1 LLVM_IAS=1 kernelrelease
+          # Build critical paths first to surface errors early
+          make -s -j"$(nproc)" LLVM=1 LLVM_IAS=1 \
+            CC="ccache clang" LD=ld.lld AR=llvm-ar NM=llvm-nm \
+            OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip \
+            READELF=llvm-readelf HOSTCC="ccache clang" HOSTCXX="ccache clang++" \
+            M=drivers/soc/qcom modules
+          make -s -j"$(nproc)" LLVM=1 LLVM_IAS=1 \
+            CC="ccache clang" LD=ld.lld AR=llvm-ar NM=llvm-nm \
+            OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip \
+            READELF=llvm-readelf HOSTCC="ccache clang" HOSTCXX="ccache clang++" \
+            M=drivers/spi modules
+          make -s -j"$(nproc)" LLVM=1 LLVM_IAS=1 \
+            CC="ccache clang" LD=ld.lld AR=llvm-ar NM=llvm-nm \
+            OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip \
+            READELF=llvm-readelf HOSTCC="ccache clang" HOSTCXX="ccache clang++" \
+            M=drivers/input/fingerprint modules
+
+  build:
+    needs: quick-check
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    env:
+      ARCH: arm64
+      SUBARCH: arm64
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      KBUILD_BUILD_USER: github-actions
+      KBUILD_BUILD_HOST: github
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            bc bison build-essential ccache curl flex git lz4 \
+            libssl-dev libelf-dev libncurses5-dev python3 python3-pip \
+            rsync fakeroot cpio zip unzip xz-utils ca-certificates
+
+      - name: Setup LLVM 21.1.0 (clang/lld)
+        run: |
+          set -e
+          mkdir -p "$GITHUB_WORKSPACE/toolchain"
+          cd "$GITHUB_WORKSPACE/toolchain"
+          curl -L -o llvm.tar.xz https://github.com/llvm/llvm-project/releases/download/llvmorg-21.1.0/LLVM-21.1.0-Linux-X64.tar.xz
+          tar -xJf llvm.tar.xz
+          echo "$GITHUB_WORKSPACE/toolchain/LLVM-21.1.0-Linux-X64/bin" >> "$GITHUB_PATH"
+
+      - name: Verify toolchain
+        run: |
+          clang --version
+          ld.lld --version
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ccache-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('**/*.[chS]', 'defconfig') }}
+          restore-keys: |
+            ccache-${{ runner.os }}-${{ github.ref_name }}-
+            ccache-${{ runner.os }}-
+
+      - name: Configure ccache
+        run: |
+          ccache --version || true
+          mkdir -p "$CCACHE_DIR"
+          ccache --set-config=max_size=5G || true
+          ccache --set-config=compiler_check=content || true
           ccache --zero-stats || true
 
       - name: Fetch AOSP mkbootimg
@@ -62,10 +151,6 @@ jobs:
           python3 /usr/local/bin/mkbootimg.py --help | head -n 5 || true
 
       - name: Build kernel (Image.gz and boot.img)
-        env:
-          ARCH: arm64
-          SUBARCH: arm64
-          CCACHE_DIR: ${{ runner.temp }}/ccache
         run: |
           set -e
           echo "Using clang: $(which clang)"
@@ -73,9 +158,9 @@ jobs:
           # Build with LLVM toolchain; build script forwards args to make
           bash ./build_kernel.sh -j"$(nproc)" \
             LLVM=1 LLVM_IAS=1 \
-            CC=clang LD=ld.lld AR=llvm-ar NM=llvm-nm \
+            CC="ccache clang" LD=ld.lld AR=llvm-ar NM=llvm-nm \
             OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip \
-            READELF=llvm-readelf HOSTCC=clang HOSTCXX=clang++
+            READELF=llvm-readelf HOSTCC="ccache clang" HOSTCXX="ccache clang++"
 
       - name: Show outputs
         run: |

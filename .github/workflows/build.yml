@@ -1,0 +1,95 @@
+name: Build Kernel (LLVM 21.1.0)
+
+on:
+  push:
+    branches: [ master, kernelsu ]
+  pull_request:
+    branches: [ master, kernelsu ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            bc bison build-essential ccache curl flex git lz4 \
+            libssl-dev libelf-dev libncurses5-dev python3 python3-pip \
+            rsync fakeroot cpio zip unzip xz-utils ca-certificates
+
+      - name: Setup LLVM 21.1.0 (clang/lld)
+        run: |
+          set -e
+          mkdir -p "$GITHUB_WORKSPACE/toolchain"
+          cd "$GITHUB_WORKSPACE/toolchain"
+          curl -L -o llvm.tar.xz https://github.com/llvm/llvm-project/releases/download/llvmorg-21.1.0/LLVM-21.1.0-Linux-X64.tar.xz
+          tar -xJf llvm.tar.xz
+          echo "$GITHUB_WORKSPACE/toolchain/LLVM-21.1.0-Linux-X64/bin" >> "$GITHUB_PATH"
+
+      - name: Verify toolchain
+        run: |
+          clang --version
+          ld.lld --version
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('**/*.[chS]', 'defconfig') }}
+          restore-keys: |
+            ccache-${{ runner.os }}-${{ github.ref_name }}-
+            ccache-${{ runner.os }}-
+
+      - name: Configure ccache
+        run: |
+          ccache --version || true
+          ccache --set-config=max_size=5G || true
+          ccache --zero-stats || true
+
+      - name: Fetch AOSP mkbootimg
+        run: |
+          git clone --depth=1 https://android.googlesource.com/platform/system/tools/mkbootimg "$GITHUB_WORKSPACE/_mkbootimg"
+          sudo ln -sf "$GITHUB_WORKSPACE/_mkbootimg/mkbootimg.py" /usr/local/bin/mkbootimg.py
+          sudo chmod +x /usr/local/bin/mkbootimg.py
+          python3 /usr/local/bin/mkbootimg.py --help | head -n 5 || true
+
+      - name: Build kernel (Image.gz and boot.img)
+        env:
+          ARCH: arm64
+          SUBARCH: arm64
+          CCACHE_DIR: ${{ runner.temp }}/ccache
+        run: |
+          set -e
+          echo "Using clang: $(which clang)"
+          echo "Repo root: $(pwd)"
+          # Build with LLVM toolchain; build script forwards args to make
+          bash ./build_kernel.sh -j"$(nproc)" \
+            LLVM=1 LLVM_IAS=1 \
+            CC=clang LD=ld.lld AR=llvm-ar NM=llvm-nm \
+            OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip \
+            READELF=llvm-readelf HOSTCC=clang HOSTCXX=clang++
+
+      - name: Show outputs
+        run: |
+          ls -lh arch/arm64/boot/Image.gz || true
+          ls -lh boot.img || true
+          ls -lh arter97-kernel-*-kernelsu-boot.img || true
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-${{ github.ref_name }}-${{ github.sha }}
+          path: |
+            arch/arm64/boot/Image.gz
+            boot.img
+            arter97-kernel-*-kernelsu-boot.img
+          if-no-files-found: warn
+

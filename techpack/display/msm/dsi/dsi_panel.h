@@ -324,6 +324,9 @@ struct dsi_panel {
 	struct dsi_display_refresh_rate_cmd_set nt_cmd_sets[DSI_CMD_SFM_MAX];
 };
 
+/* Set panel FOD UI state (true=on-screen fingerprint UI active) */
+void dsi_panel_set_fod_ui(struct dsi_panel *panel, bool status);
+
 static inline bool dsi_panel_ulps_feature_enabled(struct dsi_panel *panel)
 {
 	return panel->ulps_feature_enabled;

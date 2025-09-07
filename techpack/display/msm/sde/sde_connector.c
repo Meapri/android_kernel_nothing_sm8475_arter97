@@ -20,6 +20,7 @@
 #include "sde_rm.h"
 #include "sde_vm.h"
 #include <drm/drm_probe_helper.h>
+#include "dsi_panel.h"
 
 #include "sde_trace.h"
 
@@ -1070,6 +1071,9 @@ static int _sde_connector_update_finger_hbm_status(
 	finger_hbm_flag = c_conn->finger_flag;
 	if (finger_hbm_flag) {
 		SDE_ERROR("open hbm");
+		/* sync panel FOD UI state */
+		if (display && display->panel)
+			dsi_panel_set_fod_ui(display->panel, true);
 		if ((c_conn->lp_mode == SDE_MODE_DPMS_LP1) ||
 			(c_conn->lp_mode == SDE_MODE_DPMS_LP2)) {
 			mutex_lock(&c_conn->lock);
@@ -1083,6 +1087,8 @@ static int _sde_connector_update_finger_hbm_status(
 	} else {
 		SDE_ERROR("close hbm");
 		sde_backlight_device_update_status(c_conn->bl_device);
+		if (display && display->panel)
+			dsi_panel_set_fod_ui(display->panel, false);
 		/*wait for VBLANK */
 		//sde_encoder_wait_for_event(c_conn->encoder, MSM_ENC_VBLANK);
 		if ((c_conn->lp_mode == SDE_MODE_DPMS_LP1) ||

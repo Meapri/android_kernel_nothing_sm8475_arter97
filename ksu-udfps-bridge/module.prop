@@ -1,0 +1,7 @@
+id=udfps-bridge
+name=UDFPS Bridge (HBM/FOD toggle)
+version=1.0.0
+versionCode=1
+author=lizy
+description=Bridge UDFPS pointer events to panel HBM and Goodix FOD nodes.
+minKSU=0.6.0

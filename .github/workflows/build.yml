@@ -117,3 +117,44 @@ jobs:
             arter97-kernel-*-kernelsu-boot.img
           if-no-files-found: warn
 
+  udfpsd:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    env:
+      NDK_URL: https://dl.google.com/android/repository/android-ndk-r26d-linux.zip
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends unzip curl
+
+      - name: Setup Android NDK (r26d)
+        run: |
+          curl -L -o ndk.zip "$NDK_URL"
+          unzip -q ndk.zip -d $GITHUB_WORKSPACE
+          echo "$GITHUB_WORKSPACE/android-ndk-r26d/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_PATH
+
+      - name: Build udfpsd (aarch64)
+        run: |
+          set -e
+          cd ksu-udfps-bridge
+          mkdir -p out system/bin
+          CC=aarch64-linux-android28-clang
+          $CC -Os -fPIE -pie -static -s -Wl,--hash-style=both -o out/udfpsd src/udfpsd.c
+          file out/udfpsd
+          cp out/udfpsd system/bin/udfpsd
+          zip -r ../ksu-udfps-bridge.zip . | cat
+
+      - name: Upload udfpsd module
+        uses: actions/upload-artifact@v4
+        with:
+          name: udfps-bridge-${{ github.ref_name }}-${{ github.sha }}
+          path: |
+            ksu-udfps-bridge.zip
+          if-no-files-found: error
+

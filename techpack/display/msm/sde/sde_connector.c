@@ -1053,8 +1053,17 @@ static int _sde_connector_update_finger_hbm_status(
 	}
 
 	if (display->panel->power_mode == SDE_MODE_DPMS_OFF) {
-		SDE_ERROR("panel in power off\n");
-		return 0;
+		if (c_conn->finger_flag) {
+			SDE_ERROR("panel OFF -> force ON for finger HBM\n");
+			mutex_lock(&c_conn->lock);
+			if (c_conn->ops.set_power)
+				c_conn->ops.set_power(connector, SDE_MODE_DPMS_ON, display);
+			mutex_unlock(&c_conn->lock);
+			c_conn->last_panel_power_mode = SDE_MODE_DPMS_ON;
+		} else {
+			SDE_ERROR("panel in power off\n");
+			return 0;
+		}
 	}
 
 	SDE_ATRACE_BEGIN("_sde_connector_update_finger_hbm_statuss");

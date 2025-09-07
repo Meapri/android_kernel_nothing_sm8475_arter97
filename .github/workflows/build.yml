@@ -71,6 +71,10 @@ jobs:
           set -e
           make LLVM=1 LLVM_IAS=1 olddefconfig
           make LLVM=1 LLVM_IAS=1 kernelrelease
+          # Ensure generated headers and host tools (e.g., modpost) exist
+          make -s -j"$(nproc)" LLVM=1 LLVM_IAS=1 prepare modules_prepare
+          # Avoid symvers absence warnings during early module builds
+          touch Module.symvers
           # Build critical paths first to surface errors early
           make -s -j"$(nproc)" LLVM=1 LLVM_IAS=1 \
             CC="ccache clang" LD=ld.lld AR=llvm-ar NM=llvm-nm \

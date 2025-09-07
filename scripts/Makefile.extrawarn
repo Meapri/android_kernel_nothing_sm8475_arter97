@@ -58,6 +58,9 @@ KBUILD_CFLAGS += -Wno-tautological-constant-out-of-range-compare
 KBUILD_CFLAGS += $(call cc-disable-warning, unaligned-access)
 KBUILD_CFLAGS += $(call cc-disable-warning, cast-function-type-strict)
 KBUILD_CFLAGS += -Wno-enum-compare-conditional
+# Clang 21 adds stricter enum->enum diagnostics; suppress globally for non-W=1
+KBUILD_CFLAGS += -Wno-enum-enum-conversion
+KBUILD_CFLAGS += -Wno-error=implicit-enum-enum-cast
 endif
 
 endif

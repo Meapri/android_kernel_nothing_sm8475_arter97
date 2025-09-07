@@ -3007,6 +3007,18 @@ static ssize_t show_finger_hbm(struct kobject *kobj, struct kobj_attribute *attr
 	return sprintf(buf, "%u\n", val);
 }
 
+/* Exported: allow other kernel drivers (e.g., Goodix) to toggle FOD HBM */
+int sde_panel_feature_set_finger_hbm(int on)
+{
+	if (!panel_feature_sde_conn)
+		return -ENODEV;
+	panel_feature_sde_conn->finger_flag = on ? 1 : 0;
+	panel_feature_sde_conn->fingerlayer_dirty = true;
+	_sde_connector_update_finger_hbm_status(&panel_feature_sde_conn->base);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(sde_panel_feature_set_finger_hbm);
+
 static ssize_t panel_id1_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
 	const char *read_id_cmd = "0x01 0x06 0x01 0x00 0x01 0x00 0x00 0x01 0xDA";

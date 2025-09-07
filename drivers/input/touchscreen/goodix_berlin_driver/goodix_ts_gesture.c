@@ -28,6 +28,9 @@
 #include <linux/input/mt.h>
 #include "goodix_ts_core.h"
 
+/* Exported by techpack/display: allow toggling FOD HBM from gesture path */
+extern int sde_panel_feature_set_finger_hbm(int on);
+
 
 #define GOODIX_GESTURE_DOUBLE_TAP		0xCC
 #define GOODIX_GESTURE_SINGLE_TAP		0x4C
@@ -316,6 +319,8 @@ static int gsx_gesture_ist(struct goodix_ts_core *cd,
 			input_report_abs(cd->input_dev, ABS_MT_POSITION_Y, fody);
 			input_report_abs(cd->input_dev, ABS_MT_WIDTH_MAJOR, overlay_area);
 			input_sync(cd->input_dev);
+			/* Trigger panel HBM on for UDFPS */
+			sde_panel_feature_set_finger_hbm(1);
 			core->gesture_up_flag = 1;
 		} else {
 			ts_debug("not enable FOD-DOWN");
@@ -332,6 +337,8 @@ static int gsx_gesture_ist(struct goodix_ts_core *cd,
 			input_mt_report_slot_state(cd->input_dev,
 					MT_TOOL_FINGER, 0);
 			input_sync(cd->input_dev);
+			/* Turn HBM off when finger lifted */
+			sde_panel_feature_set_finger_hbm(0);
 			core->gesture_up_flag = 0;
 		} else {
 			ts_debug("not enable FOD-UP");

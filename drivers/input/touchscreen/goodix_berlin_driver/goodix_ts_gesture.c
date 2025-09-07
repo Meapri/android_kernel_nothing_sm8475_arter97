@@ -30,6 +30,8 @@
 
 /* Exported by techpack/display: allow toggling FOD HBM from gesture path */
 extern int sde_panel_feature_set_finger_hbm(int on);
+/* Keep device awake briefly during FOD transitions */
+#include <linux/pm_wakeup.h>
 
 
 #define GOODIX_GESTURE_DOUBLE_TAP		0xCC
@@ -320,6 +322,7 @@ static int gsx_gesture_ist(struct goodix_ts_core *cd,
 			input_report_abs(cd->input_dev, ABS_MT_POSITION_Y, fody);
 			input_report_abs(cd->input_dev, ABS_MT_WIDTH_MAJOR, overlay_area);
 			input_sync(cd->input_dev);
+			pm_wakeup_dev_event(&cd->input_dev->dev, 3000, true);
 			/* Trigger panel HBM on for UDFPS */
 			sde_panel_feature_set_finger_hbm(1);
 			core->gesture_up_flag = 1;
@@ -338,6 +341,7 @@ static int gsx_gesture_ist(struct goodix_ts_core *cd,
 			input_mt_report_slot_state(cd->input_dev,
 					MT_TOOL_FINGER, 0);
 			input_sync(cd->input_dev);
+			pm_wakeup_dev_event(&cd->input_dev->dev, 1000, true);
 			/* Turn HBM off when finger lifted */
 			sde_panel_feature_set_finger_hbm(0);
 			core->gesture_up_flag = 0;

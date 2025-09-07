@@ -1081,9 +1081,12 @@ static int _sde_connector_update_finger_hbm_status(
 			mutex_unlock(&c_conn->lock);
 			c_conn->last_panel_power_mode = SDE_MODE_DPMS_ON;
 		}
+		/* apply HBM and ensure one vblank passes to avoid race */
 		sde_backlight_device_update_status(c_conn->bl_device);
-		/*wait for VBLANK */
-		//sde_encoder_wait_for_event(c_conn->encoder, MSM_ENC_VBLANK);
+		sde_encoder_wait_for_event(c_conn->encoder, MSM_ENC_VBLANK);
+		/* drop HBM and ensure one vblank passes to avoid artifacts */
+		sde_backlight_device_update_status(c_conn->bl_device);
+		sde_encoder_wait_for_event(c_conn->encoder, MSM_ENC_VBLANK);
 	} else {
 		SDE_ERROR("close hbm");
 		sde_backlight_device_update_status(c_conn->bl_device);

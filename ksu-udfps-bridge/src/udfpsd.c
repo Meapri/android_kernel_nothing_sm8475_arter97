@@ -21,8 +21,8 @@
 // Goodix driver netlink family from drivers/input/fingerprint/netlink.c
 #define NETLINK_GOODIX 25
 
-static const char *HBM_NODE = "/sys/panel_feature/hbm_mode";
-static const char *FOD_NODE = "/sys/devices/platform/goodix_ts.0/gesture/fod_en";
+static char HBM_NODE[128] = ""; // prefer finger_hbm, fallback to hbm_mode
+static char FOD_NODE[160] = ""; // autodetect goodix_ts.X
 
 static volatile sig_atomic_t g_stop = 0;
 static void handle_sig(int sig) { (void)sig; g_stop = 1; }
@@ -43,16 +43,28 @@ static int write_int(const char *path, int v) {
     return err;
 }
 
-static int ensure_nodes(void) {
-    if (access(HBM_NODE, W_OK) != 0) {
-        log_print("HBM node missing or not writable: %s", HBM_NODE);
-        return -1;
+static void detect_nodes(void) {
+    // HBM: finger_hbm first (UDFPS-specific), else hbm_mode
+    if (access("/sys/panel_feature/finger_hbm", W_OK) == 0) {
+        strncpy(HBM_NODE, "/sys/panel_feature/finger_hbm", sizeof(HBM_NODE)-1);
+    } else if (access("/sys/panel_feature/hbm_mode", W_OK) == 0) {
+        strncpy(HBM_NODE, "/sys/panel_feature/hbm_mode", sizeof(HBM_NODE)-1);
+    } else {
+        HBM_NODE[0] = '\0';
     }
-    if (access(FOD_NODE, W_OK) != 0) {
-        log_print("FOD node missing or not writable: %s", FOD_NODE);
-        return -1;
+
+    // FOD enable path: try goodix_ts.0/1 and un-suffixed
+    const char *candidates[] = {
+        "/sys/devices/platform/goodix_ts.0/gesture/fod_en",
+        "/sys/devices/platform/goodix_ts.1/gesture/fod_en",
+        "/sys/devices/platform/goodix_ts/gesture/fod_en",
+    };
+    for (size_t i = 0; i < sizeof(candidates)/sizeof(candidates[0]); ++i) {
+        if (access(candidates[i], W_OK) == 0) {
+            strncpy(FOD_NODE, candidates[i], sizeof(FOD_NODE)-1);
+            break;
+        }
     }
-    return 0;
 }
 
 static int nl_send_register(int sockfd, uint32_t pid) {
@@ -96,20 +108,26 @@ static int setup_uevent_nl(void) {
 }
 
 static void handle_down(void) {
-    write_int(FOD_NODE, 1);
-    write_int(HBM_NODE, 1);
-    log_print("DOWN -> FOD=1, HBM=1");
+    if (FOD_NODE[0]) write_int(FOD_NODE, 1);
+    if (HBM_NODE[0]) write_int(HBM_NODE, 1);
+    log_print("DOWN -> FOD=1, HBM=1 (HBM:%s)", HBM_NODE[0] ? HBM_NODE : "none");
 }
 
 static void handle_up(void) {
-    write_int(HBM_NODE, 0);
-    log_print("UP -> HBM=0");
+    if (HBM_NODE[0]) write_int(HBM_NODE, 0);
+    log_print("UP -> HBM=0 (HBM:%s)", HBM_NODE[0] ? HBM_NODE : "none");
 }
 
 int main(void) {
     signal(SIGINT, handle_sig);
     signal(SIGTERM, handle_sig);
-    if (ensure_nodes() != 0) return 0;
+    detect_nodes();
+    if (!HBM_NODE[0]) {
+        log_print("No writable HBM sysfs node (finger_hbm/hbm_mode) found");
+    }
+    if (!FOD_NODE[0]) {
+        log_print("No writable FOD enable node found");
+    }
 
     int s_goodix = setup_goodix_nl();
     int s_uevent = setup_uevent_nl();

@@ -1,0 +1,64 @@
+name: Build UDFPS Module (KernelSU)
+
+on:
+  push:
+    branches: [ master, kernelsu ]
+  pull_request:
+    branches: [ master, kernelsu ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-udfps:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends curl zip unzip ca-certificates
+
+      - name: Setup Android NDK r26d
+        run: |
+          set -e
+          mkdir -p "$GITHUB_WORKSPACE/_toolchain"
+          cd "$GITHUB_WORKSPACE/_toolchain"
+          curl -L -o android-ndk.zip https://dl.google.com/android/repository/android-ndk-r26d-linux.zip
+          unzip -q android-ndk.zip && rm android-ndk.zip
+          echo "$GITHUB_WORKSPACE/_toolchain/android-ndk-r26d" > $GITHUB_WORKSPACE/NDK_PATH
+
+      - name: Build udfpsd (static)
+        run: |
+          set -e
+          NDK=$(cat $GITHUB_WORKSPACE/NDK_PATH)
+          API=30
+          CC="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android${API}-clang"
+          CFLAGS="-Os -static -s"
+          mkdir -p ksu-udfps-bridge/bin
+          "$CC" $CFLAGS -o ksu-udfps-bridge/bin/udfpsd ksu-udfps-bridge/src/udfpsd.c
+          file ksu-udfps-bridge/bin/udfpsd || true
+
+      - name: Package module zip
+        run: |
+          set -e
+          cd ksu-udfps-bridge
+          zip -r ../udfps-bridge.zip .
+          cd ..
+          ls -lh udfps-bridge.zip
+
+      - name: Upload UDFPS module artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: udfps-bridge-${{ github.ref_name }}-${{ github.sha }}
+          path: udfps-bridge.zip
+          if-no-files-found: error
+
+

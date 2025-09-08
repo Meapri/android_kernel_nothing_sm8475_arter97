@@ -1,4 +1,30 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+#ifndef _XT_DSCP_MATCH_H
+#define _XT_DSCP_MATCH_H
+
+#include <linux/types.h>
+
+/* DSCP helpers used by DSCP/TOS targets & matches */
+#define XT_DSCP_MASK    0xfc
+#define XT_DSCP_SHIFT   2
+#define XT_DSCP_MAX     0x3f
+
+/* match info (used by xt_dscp match) */
+struct xt_dscp_info {
+    __u8 dscp;
+    __u8 invert;
+};
+
+/* match info (TOS) */
+struct xt_tos_match_info {
+    __u8 tos_mask;
+    __u8 tos_value;
+    __u8 invert;
+};
+
+#endif /* _XT_DSCP_MATCH_H */
+
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /* x_tables module for setting the IPv4/IPv6 DSCP field
  *
  * (C) 2002 Harald Welte <laforge@gnumonks.org>

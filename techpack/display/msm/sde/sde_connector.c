@@ -1061,6 +1061,8 @@ static int _sde_connector_update_finger_hbm_status(
 				c_conn->ops.set_power(connector, SDE_MODE_DPMS_ON, display);
 			mutex_unlock(&c_conn->lock);
 			c_conn->last_panel_power_mode = SDE_MODE_DPMS_ON;
+			/* ensure panel has a frame before proceeding */
+			sde_encoder_wait_for_event(c_conn->encoder, MSM_ENC_VBLANK);
 		} else {
 			SDE_ERROR("panel in power off\n");
 			return 0;
@@ -1073,27 +1075,26 @@ static int _sde_connector_update_finger_hbm_status(
 		SDE_ERROR("open hbm");
 		/* sync panel FOD UI state */
 		if (display && display->panel)
-			dsi_panel_set_fod_ui(display->panel, true);
+			dsi_panel_set_fod_ui(display->panel, c_conn->finger_flag);
 		if ((c_conn->lp_mode == SDE_MODE_DPMS_LP1) ||
 			(c_conn->lp_mode == SDE_MODE_DPMS_LP2)) {
 			mutex_lock(&c_conn->lock);
 			c_conn->ops.set_power(connector, SDE_MODE_DPMS_ON, display);
 			mutex_unlock(&c_conn->lock);
 			c_conn->last_panel_power_mode = SDE_MODE_DPMS_ON;
+			/* ensure one vblank after power on */
+			sde_encoder_wait_for_event(c_conn->encoder, MSM_ENC_VBLANK);
 		}
 		/* apply HBM and ensure one vblank passes to avoid race */
-		sde_backlight_device_update_status(c_conn->bl_device);
-		sde_encoder_wait_for_event(c_conn->encoder, MSM_ENC_VBLANK);
-		/* drop HBM and ensure one vblank passes to avoid artifacts */
 		sde_backlight_device_update_status(c_conn->bl_device);
 		sde_encoder_wait_for_event(c_conn->encoder, MSM_ENC_VBLANK);
 	} else {
 		SDE_ERROR("close hbm");
 		sde_backlight_device_update_status(c_conn->bl_device);
 		if (display && display->panel)
-			dsi_panel_set_fod_ui(display->panel, false);
-		/*wait for VBLANK */
-		//sde_encoder_wait_for_event(c_conn->encoder, MSM_ENC_VBLANK);
+			dsi_panel_set_fod_ui(display->panel, c_conn->finger_flag);
+		/* ensure one vblank after hbm off */
+		sde_encoder_wait_for_event(c_conn->encoder, MSM_ENC_VBLANK);
 		if ((c_conn->lp_mode == SDE_MODE_DPMS_LP1) ||
 			(c_conn->lp_mode == SDE_MODE_DPMS_LP2)) {
 			mutex_lock(&c_conn->lock);

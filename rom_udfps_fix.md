@@ -117,3 +117,4 @@ allow hal_fingerprint_default sysfs:file rw_file_perms;
 - `/sys/devices/platform/goodix_ts.0/gesture/fod_en` → `u:object_r:sysfs:s0`
 
 
+

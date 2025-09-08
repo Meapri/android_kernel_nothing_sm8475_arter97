@@ -1,4 +1,10 @@
 id=udfps-bridge
+name=UDFPS Bridge (KernelSU)
+version=1.0.0
+versionCode=100
+author=AI Assistant
+description=KernelSU module to bridge UDFPS events to panel HBM via sysfs. Requires panel_feature nodes.
+id=udfps-bridge
 name=UDFPS Bridge (HBM/FOD toggle)
 version=1.0.0
 versionCode=1

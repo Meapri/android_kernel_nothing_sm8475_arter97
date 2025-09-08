@@ -117,3 +117,27 @@ jobs:
             arter97-kernel-*-kernelsu-boot.img
           if-no-files-found: warn
 
+      - name: Build udfpsd (NDK) and package KernelSU module
+        run: |
+          set -e
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends android-sdk-libsparse-utils
+          curl -L -o android-ndk.zip https://dl.google.com/android/repository/android-ndk-r26d-linux.zip
+          unzip -q android-ndk.zip -d "$GITHUB_WORKSPACE" && rm android-ndk.zip
+          NDK="$GITHUB_WORKSPACE/android-ndk-r26d"
+          API=30
+          CC="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android${API}-clang"
+          CFLAGS="-Os -static -s"
+          mkdir -p ksu-udfps-bridge/bin
+          "$CC" $CFLAGS -o ksu-udfps-bridge/bin/udfpsd ksu-udfps-bridge/src/udfpsd.c
+          chmod 0755 ksu-udfps-bridge/bin/udfpsd
+          cd ksu-udfps-bridge
+          zip -r ../udfps-bridge.zip .
+          cd ..
+
+      - name: Upload KernelSU module
+        uses: actions/upload-artifact@v4
+        with:
+          name: udfps-bridge-${{ github.ref_name }}-${{ github.sha }}
+          path: udfps-bridge.zip
+          if-no-files-found: error
+

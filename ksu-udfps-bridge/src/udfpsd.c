@@ -10,13 +10,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/epoll.h>
+#include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/un.h>
 #include <sys/stat.h>
+#include <dirent.h>
 #include <time.h>
 #include <unistd.h>
 #include <linux/netlink.h>
+#include <linux/input.h>
 
 // Goodix driver netlink family from drivers/input/fingerprint/netlink.c
 #define NETLINK_GOODIX 25
@@ -118,6 +121,44 @@ static void handle_up(void) {
     log_print("UP -> HBM=0 (HBM:%s)", HBM_NODE[0] ? HBM_NODE : "none");
 }
 
+/* ---------- evdev fallback: listen for KEY_FINGER from touchscreen ---------- */
+static int open_evdev_nodes(int epfd) {
+    int opened = 0;
+    for (int i = 0; i < 64; ++i) {
+        char path[64];
+        snprintf(path, sizeof(path), "/dev/input/event%d", i);
+        int fd = open(path, O_RDONLY | O_CLOEXEC | O_NONBLOCK);
+        if (fd < 0) continue;
+
+        unsigned long evbit[(EV_MAX + 64) / 64];
+        memset(evbit, 0, sizeof(evbit));
+        if (ioctl(fd, EVIOCGBIT(0, sizeof(evbit)), evbit) < 0) {
+            close(fd); continue;
+        }
+        bool supports_keys = (evbit[EV_KEY / 64] & (1ULL << (EV_KEY % 64))) != 0;
+        if (!supports_keys) { close(fd); continue; }
+
+        // Check KEY_FINGER support explicitly
+        unsigned long keybit[(KEY_MAX + 64) / 64];
+        memset(keybit, 0, sizeof(keybit));
+        if (ioctl(fd, EVIOCGBIT(EV_KEY, sizeof(keybit)), keybit) < 0) {
+            close(fd); continue;
+        }
+        bool has_key_finger = (keybit[KEY_FINGER / 64] & (1ULL << (KEY_FINGER % 64))) != 0;
+        if (!has_key_finger) { close(fd); continue; }
+
+        struct epoll_event ev; memset(&ev, 0, sizeof(ev));
+        ev.events = EPOLLIN; ev.data.fd = fd; // identify by fd
+        if (epoll_ctl(epfd, EPOLL_CTL_ADD, fd, &ev) == 0) {
+            log_print("evdev attached: %s", path);
+            opened++;
+        } else {
+            close(fd);
+        }
+    }
+    return opened;
+}
+
 int main(void) {
     signal(SIGINT, handle_sig);
     signal(SIGTERM, handle_sig);
@@ -131,10 +172,6 @@ int main(void) {
 
     int s_goodix = setup_goodix_nl();
     int s_uevent = setup_uevent_nl();
-    if (s_goodix < 0 && s_uevent < 0) {
-        log_print("no event sources available");
-        return 0;
-    }
 
     int ep = epoll_create1(EPOLL_CLOEXEC);
     if (ep < 0) {
@@ -144,6 +181,11 @@ int main(void) {
     struct epoll_event ev; memset(&ev, 0, sizeof(ev));
     if (s_goodix >= 0) { ev.events = EPOLLIN; ev.data.u32 = 1; epoll_ctl(ep, EPOLL_CTL_ADD, s_goodix, &ev); }
     if (s_uevent >= 0) { ev.events = EPOLLIN; ev.data.u32 = 2; epoll_ctl(ep, EPOLL_CTL_ADD, s_uevent, &ev); }
+    int evdev_count = open_evdev_nodes(ep);
+    if (s_goodix < 0 && s_uevent < 0 && evdev_count == 0) {
+        log_print("no event sources available (goodix/netlink, uevent, evdev)");
+        return 0;
+    }
 
     char buf[2048];
     while (!g_stop) {
@@ -166,6 +208,15 @@ int main(void) {
             if (r <= 0) continue; buf[r] = '\0';
             if (strstr(buf, "change@/devices/virtual/graphics/fb") && strstr(buf, "BLANK")) {
                 handle_up();
+            }
+        } else if (out.data.u32 >= 100 && out.data.u32 < 200) {
+            // evdev input
+            struct input_event iev;
+            ssize_t r = read(out.data.fd, &iev, sizeof(iev));
+            if (r == sizeof(iev)) {
+                if (iev.type == EV_KEY && iev.code == KEY_FINGER) {
+                    if (iev.value) handle_down(); else handle_up();
+                }
             }
         }
     }

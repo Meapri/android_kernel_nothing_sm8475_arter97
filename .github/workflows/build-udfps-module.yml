@@ -42,6 +42,7 @@ jobs:
           API=30
           CC="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android${API}-clang"
           CFLAGS="-Os -static -s"
+          # Bionic headers provide epoll/ioctl/input definitions
           mkdir -p ksu-udfps-bridge/bin
           "$CC" $CFLAGS -o ksu-udfps-bridge/bin/udfpsd ksu-udfps-bridge/src/udfpsd.c
           file ksu-udfps-bridge/bin/udfpsd || true
